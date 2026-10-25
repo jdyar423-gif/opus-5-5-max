@@ -371,14 +371,20 @@ export function buildPelican({ xf, pose = 'ride', anchors = null, seed = 1, deta
       { a: deg(-24), len: 0.088 },
     ];
     const tips = [];
+    // The foot turns out on the pedal and rolls onto its outer edge, so from behind its toes
+    // fan past the end of the cage and the webs between them turn toward the viewer.
+    const turnOut = deg(32);
+    const roll = 0.45 * side;
+    const rl = (v) => [v[0], v[1] * Math.cos(roll) - v[2] * Math.sin(roll), v[1] * Math.sin(roll) + v[2] * Math.cos(roll)];
+    const down = rl([0, -1, 0]);
     for (const t of toes) {
-      const ang = side < 0 ? t.a : -t.a;
-      const dir = [Math.cos(ang), 0, Math.sin(ang)];
+      const ang = side < 0 ? t.a - turnOut : -t.a + turnOut;
+      const dir = rl([Math.cos(ang), 0, Math.sin(ang)]);
       const knuckle = madd(base, dir, t.len * 0.62);
-      const tip = madd(madd(base, dir, t.len), [0, -1, 0], t.len * 0.22);
+      const tip = madd(madd(base, dir, t.len), down, t.len * 0.22);
       prims.push(new RoundCone(P(base), P(knuckle), 0.0075, 0.006, 'foot', OBJ.FEET, {}));
       prims.push(new RoundCone(P(knuckle), P(tip), 0.006, 0.0035, 'foot', OBJ.FEET, {}));
-      prims.push(new Capsule(P(tip), P(madd(madd(tip, dir, 0.007), [0, -1, 0], 0.006)), 0.0021, 'claw', OBJ.FEET, {}));
+      prims.push(new Capsule(P(tip), P(madd(madd(tip, dir, 0.007), down, 0.006)), 0.0021, 'claw', OBJ.FEET, {}));
       tips.push({ ang, len: t.len });
     }
     const angs = tips.map((t) => t.ang);
@@ -396,8 +402,8 @@ export function buildPelican({ xf, pose = 'ride', anchors = null, seed = 1, deta
       return r < reach * 0.82 * (0.6 + (0.4 * best) / reach);
     };
     const ax = V([1, 0, 0]);
-    const ay = V([0, 1, 0]);
-    const c = P(madd(madd(base, [1, 0, 0], reach / 2), [0, 1, 0], 0.003));
+    const ay = V(rl([0, 1, 0]));
+    const c = P(madd(madd(base, [1, 0, 0], reach / 2), rl([0, 1, 0]), 0.003));
     prims.push(new Plate(c, frame(ax, ay, cross(ax, ay)), reach / 2, reach, webShape, 'web', OBJ.FEET, {}));
     L.foot = P(base);
   }

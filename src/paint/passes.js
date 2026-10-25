@@ -430,6 +430,63 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     { hw: 0.7, thr: 0.05, objs: PRECISE, len: [2, 4.5], pass: 23 },
     { hw: 0.42, thr: 0.045, objs: set(OBJ.EYE, OBJ.HEAD, OBJ.BILL), len: [2, 4], pass: 24 },
   ];
+  const projR = (P, r) => {
+    const p = camera.project(P);
+    return [p[0] * H - region.x0, p[1] * H - region.y0, (camera.f * r * H) / p[2]];
+  };
+  // Per-channel median of the reference along a polyline: a tube's own colour, unswayed by
+  // the light catching one edge or by the sky at its ends.
+  const medianAlong = (pts, n) => {
+    const ch = [[], [], []];
+    for (let k = 0; k < n; k++) {
+      const f = (k + 0.5) / n;
+      const seg = Math.min(pts.length - 2, Math.floor(f * (pts.length - 1)));
+      const t = f * (pts.length - 1) - seg;
+      const qx = pts[seg][0] + (pts[seg + 1][0] - pts[seg][0]) * t;
+      const qy = pts[seg][1] + (pts[seg + 1][1] - pts[seg][1]) * t;
+      if (qx < 0 || qy < 0 || qx >= W || qy >= Hc || !BIKE.has(S.obj(qx, qy))) continue;
+      const q = S.color(qx, qy, 0, cr);
+      for (let c = 0; c < 3; c++) ch[c].push(q[c]);
+    }
+    if (ch[0].length < 2) return null;
+    return ch.map((v) => v.sort((a, b) => a - b)[v.length >> 1]);
+  };
+  // Underpainting for the bicycle where it is large enough to need it: one long stroke per
+  // tube and a few arcs per tyre, so the passes below only find the light along the edges
+  // (instead of building every tube out of dabs).
+  {
+    const rng = rngFor(seed, 29);
+    for (const prim of scene.bike.prims) {
+      if (!prim.ba || prim.mat === 'tyre' || prim.mat === 'rim') continue;
+      const a = projR(prim.a, prim.r);
+      const b = projR(prim.b, prim.r);
+      if (Math.max(a[2], b[2]) <= 3) continue; // thin tubes are drawn after the passes
+      const c = medianAlong([a, b], 7);
+      if (!c) continue;
+      stroke({ ctrl: [[a[0], a[1]], [b[0], b[1]]], width: [a[2] * 0.95, b[2] * 0.95], color: c, alpha: 0.95, thick: 0.07, wet: 0.08, dry: 0.08, rag: 0.15, taper: [0.02, 0.05], caps: 'flat', mask: bikeMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    }
+    for (const ring of ['tyre', 'rim']) {
+      const segs = scene.bike.prims.filter((p) => p.mat === ring);
+      for (let w0 = 0; w0 < segs.length; w0 += 72) {
+        const pts = [];
+        let r = 0;
+        for (let k = 0; k <= 72; k += 3) {
+          const sg = segs[w0 + (k % 72)];
+          const p = projR(sg.a, sg.r);
+          pts.push([p[0], p[1]]);
+          r += p[2];
+        }
+        r /= pts.length;
+        if (r <= 4) continue; // small wheels are drawn after the passes
+        for (let arc = 0; arc < 6; arc++) {
+          const part = pts.slice(arc * 4, arc * 4 + 5);
+          const c = medianAlong(part, 9);
+          if (!c) continue;
+          stroke({ ctrl: part, width: r * (ring === 'tyre' ? 0.95 : 0.8), color: c, alpha: 0.95, thick: ring === 'tyre' ? 0.08 : 0.06, wet: 0.08, dry: 0.08, rag: 0.15, taper: [0.04, 0.04], mask: bikeMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+        }
+      }
+    }
+  }
   for (const lv of levels) {
     const hw0 = Math.max(0.55, px(lv.hw));
     const spacing = Math.max(1.6, hw0 * 1.7);
@@ -454,7 +511,10 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
       const o = S.obj(bx, by);
       const objs = BIKE.has(o) ? BIKE : PRECISE.has(o) && lv.objs === PRECISE ? PRECISE : FIGURE;
       const hw = hw0 * rng.range(0.85, 1.15);
-      const pts = trace(S, bx, by, { step: Math.max(1.2, hw * 0.55), maxLen: hw * rng.range(lv.len[0], lv.len[1]), sigma: hw * 0.5, maxDiff: 0.14, minLen: hw * 0.6, objs, curl: 0.3 });
+      // On the bicycle a touch runs the length of the tube or round the tyre, as one pull.
+      const onBike = BIKE.has(o);
+      const len = onBike ? [6, 14] : lv.len;
+      const pts = trace(S, bx, by, { step: Math.max(1.2, hw * 0.55), maxLen: hw * rng.range(len[0], len[1]), sigma: hw * 0.5, maxDiff: 0.14, minLen: hw * 0.6, objs, curl: onBike ? 0.45 : 0.3 });
       const precise = PRECISE.has(o) && lv.objs !== FIGURE;
       const c = jitter(S.color(bx, by, precise ? hw * 0.3 : hw * 0.4, cc, 'figure'), rng, { value: precise ? 0.004 : 0.01, temp: 0.005 });
       const light = ref.light[S.idx(bx, by)];
@@ -469,11 +529,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
   t0 = Date.now();
   {
     const rng = rngFor(seed, 30);
-    const projR = (P, r) => {
-      const p = camera.project(P);
-      return [p[0] * H - region.x0, p[1] * H - region.y0, (camera.f * r * H) / p[2]];
-    };
-    // Only tubes too thin for the error-driven passes get explicit strokes.
+    // Tubes too thin for the error-driven passes get explicit strokes.
     for (const prim of scene.bike.prims) {
       if (!prim.ba || prim.mat === 'tyre' || prim.mat === 'rim') continue;
       const a = projR(prim.a, prim.r);
