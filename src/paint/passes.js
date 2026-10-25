@@ -37,6 +37,10 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
   const figureMask = S.mask(FIGURE);
   const bikeMask = S.mask(BIKE);
   const groundMask = S.mask(new Set([...SKYS, ...SEA, ...PAVE, ...STONE, ...SPRAY, ...FLOCK])); // all but the figure
+  // Each mass's own strokes stay on it (a horizontal sea stroke must not cross a coping stone).
+  const skyMask = S.mask(new Set([...SKYS, ...FLOCK]));
+  const seaMask = S.mask(new Set([...SEA, ...SPRAY]));
+  const stoneMask = S.mask(new Set([...PAVE, ...STONE]));
   const objMasks = new Map();
   const maskOf = (o) => {
     if (!objMasks.has(o)) objMasks.set(o, S.mask(set(o)));
@@ -92,7 +96,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const c1 = jitter(S.color(x, y - hw * 0.55, hw * 0.6, cc, 'sky'), rng, { value: 0.008, temp: 0.006 });
     const c2 = jitter(S.color(x, y + hw * 0.55, hw * 0.6, cr, 'sky'), rng, { value: 0.008, temp: 0.006 });
     const thick = 0.045 + 0.09 * Math.min(1, lum(c1) * 1.5);
-    stroke({ ctrl: pts, width: hw, color: c1, color2: c2, streakMix: 0.35, alpha: 0.92, thick, wet: 0.4, pickup: 0.42, dry: 0.12, load: 1, taper: [0.16, 0.34], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: pts, width: hw, color: c1, color2: c2, streakMix: 0.35, alpha: 0.92, thick, wet: 0.4, pickup: 0.42, dry: 0.12, load: 1, taper: [0.16, 0.34], mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Cloud streaks: long, narrower strokes laid along the stratus where the sweeps lost it.
   forCells({ region, spacing: px(5), margin: px(160), seed, pass: 60 }, (x, y, rng) => {
@@ -102,7 +106,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     if (colorDiff(target, canvasColor(canvas, S.idx(x, y), cr)) < 0.075) return;
     const maxLen = px(rng.range(50, 210));
     const pts = trace(S, x, y, { step: Math.max(2, hw * 0.6), maxLen, sigma: hw * 0.5, maxDiff: 0.085, minLen: hw * 7, objs: SKYS, curl: 0.05, dir0: [rng.chance(0.5) ? 1 : -1, 0] });
-    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.006, temp: 0.005 }), alpha: 0.82, thick: 0.05, wet: 0.3, pickup: 0.3, dry: 0.2, taper: [0.2, 0.35], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.006, temp: 0.005 }), alpha: 0.82, thick: 0.05, wet: 0.3, pickup: 0.3, dry: 0.2, taper: [0.2, 0.35], mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Refine: correct values where the sweeps wandered.
   forCells({ region, spacing: px(6), margin: px(40), seed, pass: 3 }, (x, y, rng) => {
@@ -112,7 +116,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const now = canvasColor(canvas, S.idx(x, y), cr);
     if (colorDiff(target, now) < 0.13) return;
     const pts = trace(S, x, y, { step: Math.max(2, hw * 0.6), maxLen: px(rng.range(40, 130)), sigma: hw * 0.6, maxDiff: 0.16, minLen: hw * 5, objs: SKYS, curl: 0.08 });
-    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.008, temp: 0.006 }), alpha: 0.85, thick: 0.06, wet: 0.28, pickup: 0.25, dry: 0.15, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.008, temp: 0.006 }), alpha: 0.85, thick: 0.06, wet: 0.28, pickup: 0.25, dry: 0.15, mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Haze strata hugging the horizon.
   {
@@ -125,7 +129,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
       const len = px(rng.range(80, 260));
       const hw = px(rng.range(1.5, 4));
       const c = S.color(Math.max(0, Math.min(W - 1, x)), y, px(5), cc, 'sky');
-      stroke({ ctrl: [[x - len / 2, y + rng.normal()], [x, y + rng.normal() * 2], [x + len / 2, y + rng.normal()]], width: hw, color: jitter(c, rng, { value: 0.008, temp: 0.01 }), alpha: 0.45, thick: 0.04, wet: 0.5, pickup: 0.45, dry: 0.2, taper: [0.2, 0.35], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+      stroke({ ctrl: [[x - len / 2, y + rng.normal()], [x, y + rng.normal() * 2], [x + len / 2, y + rng.normal()]], width: hw, color: jitter(c, rng, { value: 0.008, temp: 0.01 }), alpha: 0.45, thick: 0.04, wet: 0.5, pickup: 0.45, dry: 0.2, taper: [0.2, 0.35], mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
     }
   }
   // Palette-knife drags in the glow and the cloud bands, kept clear of the head.
@@ -151,7 +155,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
       const c = shiftL(S.color(x, y, px(5), cc, 'sky'), 0.004);
       const ex = Math.cos(ang) * len;
       const ey = Math.sin(ang) * len;
-      stroke({ kind: 'knife', ctrl: [[x, y], [x + ex, y + ey]], width: hw, color: jitter(c, rng, { value: 0.006, temp: 0.008 }), alpha: 0.9, thick: 0.18, load: 0.95, deplete: len * rng.range(0.35, 0.7), pickup: 0.55, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+      stroke({ kind: 'knife', ctrl: [[x, y], [x + ex, y + ey]], width: hw, color: jitter(c, rng, { value: 0.006, temp: 0.008 }), alpha: 0.9, thick: 0.18, load: 0.95, deplete: len * rng.range(0.35, 0.7), pickup: 0.55, mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
     }
   }
   // The sun: a few short, heavily loaded horizontal pulls of near-white (not swirls: their
@@ -163,12 +167,12 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
       const y = sunP[1] + sunR * (i / 3 - 0.5) * 1.1 + rng.normal() * sunR * 0.06;
       const half = sunR * Math.sqrt(Math.max(0.05, 1 - ((y - sunP[1]) / (sunR * 0.95)) ** 2)) * rng.range(0.75, 0.95);
       const x = sunP[0] + rng.normal() * sunR * 0.08;
-      stroke({ ctrl: [[x - half, y], [x + half, y + rng.normal() * sunR * 0.04]], width: sunR * rng.range(0.24, 0.32), color: shiftL(core, 0.02), alpha: 1, thick: 0.55, wet: 0.12, dry: 0.12, taper: [0.25, 0.3], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+      stroke({ ctrl: [[x - half, y], [x + half, y + rng.normal() * sunR * 0.04]], width: sunR * rng.range(0.24, 0.32), color: shiftL(core, 0.02), alpha: 1, thick: 0.55, wet: 0.12, dry: 0.12, taper: [0.25, 0.3], mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
     }
     for (let i = 0; i < 2; i++) {
       const y = sunP[1] + sunR * rng.range(0.35, 0.8);
       const c = S.color(sunP[0], sunP[1] + sunR * 1.6, px(2), cr);
-      stroke({ ctrl: [[sunP[0] - sunR * 3, y], [sunP[0] + sunR * 3, y + rng.normal()]], width: sunR * 0.22, color: c, alpha: 0.45, thick: 0.05, wet: 0.5, pickup: 0.5, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+      stroke({ ctrl: [[sunP[0] - sunR * 3, y], [sunP[0] + sunR * 3, y + rng.normal()]], width: sunR * 0.22, color: c, alpha: 0.45, thick: 0.05, wet: 0.5, pickup: 0.5, mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
     }
     for (let i = 0; i < 40; i++) {
       const a = rng.range(Math.PI * 0.95, Math.PI * 2.05);
@@ -185,7 +189,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
         arc.push([sunP[0] + Math.cos(ak) * r, Math.min(horizonY - 1, sunP[1] + Math.sin(ak) * r * 0.85)]);
       }
       const c = shiftL(S.color(x, y, px(1.5), cr), 0.008);
-      stroke({ ctrl: arc, width: px(rng.range(1.5, 3.2)), color: c, alpha: 0.6, thick: 0.12, wet: 0.35, pickup: 0.3, taper: [0.25, 0.35], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+      stroke({ ctrl: arc, width: px(rng.range(1.5, 3.2)), color: c, alpha: 0.6, thick: 0.12, wet: 0.35, pickup: 0.3, taper: [0.25, 0.35], mask: skyMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
     }
   }
   tick('sky', t0);
@@ -209,7 +213,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
       ctrl.push([x + t * len, y + 0.3 * hw * Math.sin((2 * Math.PI * (t * len)) / (4 * hw) + phase)]);
     }
     const c = jitter(S.color(x, y, hw * 0.7, cc, 'sea'), rng, { value: 0.015, temp: 0.008 });
-    stroke({ ctrl, width: hw, color: c, color2: S.color(x, y + hw * 0.8, hw * 0.5, cr, 'sea'), streakMix: 0.3, alpha: 0.9, thick: 0.05 + 0.06 * Math.min(1, lum(c) * 2), wet: 0.22, pickup: 0.28, dry: 0.2, taper: [0.1, 0.25], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl, width: hw, color: c, color2: S.color(x, y + hw * 0.8, hw * 0.5, cr, 'sea'), streakMix: 0.3, alpha: 0.9, thick: 0.05 + 0.06 * Math.min(1, lum(c) * 2), wet: 0.22, pickup: 0.28, dry: 0.2, taper: [0.1, 0.25], mask: seaMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   forCells({ region, spacing: px(4), margin: px(30), seed, pass: 8 }, (x, y, rng) => {
     if (!SEA.has(S.obj(x, y))) return;
@@ -218,11 +222,11 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const target = S.color(x, y, hw * 0.6, cc, 'sea');
     if (colorDiff(target, canvasColor(canvas, S.idx(x, y), cr)) < 0.08) return;
     const len = hw * rng.range(5, 10);
-    stroke({ ctrl: [[x - len / 2, y], [x + len / 2, y + rng.normal() * hw * 0.2]], width: hw, color: jitter(target, rng, { value: 0.01, temp: 0.006 }), alpha: 0.85, thick: 0.05, wet: 0.2, dry: 0.25, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: [[x - len / 2, y], [x + len / 2, y + rng.normal() * hw * 0.2]], width: hw, color: jitter(target, rng, { value: 0.01, temp: 0.006 }), alpha: 0.85, thick: 0.05, wet: 0.2, dry: 0.25, mask: seaMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Glitter: clustered impasto flecks along wave crests, brightest and thickest last.
   {
-    const gold = mixPaint({ W: 0.86, O: 0.13, V: 0.01 });
+    const gold = mixPaint({ W: 0.9, O: 0.09, V: 0.008 });
     const silver = mixPaint({ W: 0.97, O: 0.025, K: 0.002 });
     const flecks = [];
     for (let y = horizonY + 1; y < Hc; ) {
@@ -237,7 +241,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
         const kids = rowRng.int(1, 4);
         for (let k = 0; k < kids; k++) {
           const wd = px(0.45 + 3.2 * f) * rowRng.range(0.6, 1.3);
-          flecks.push({ x: x + rowRng.normal() * wd * 3, y: y + rowRng.normal() * wd * 0.5, wd, g, f, seed: rowRng.int(0, 1e9), knife: rowRng.chance(0.07), silver: rowRng.chance(0.3) });
+          flecks.push({ x: x + rowRng.normal() * wd * 3, y: y + rowRng.normal() * wd * 0.5, wd, g, f, seed: rowRng.int(0, 1e9), knife: rowRng.chance(0.07), silver: rowRng.chance(0.5) });
         }
       }
       y += Math.max(1.5, 0.06 * (y - horizonY) + 1);
@@ -245,10 +249,11 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     flecks.sort((a, b) => a.g - b.g);
     for (const fl of flecks) {
       const rng = rngFor(fl.seed, 1);
-      const len = fl.wd * rng.range(2.5, 7) * (fl.knife ? 1.6 : 1);
+      // Long, broken horizontal dashes, dragged so they catch on the weave.
+      const len = fl.wd * rng.range(4, 10) * (fl.knife ? 1.4 : 1);
       const base = fl.silver ? silver : gold;
-      const c = lerpColor(S.color(fl.x, fl.y, 1, cc), base, Math.min(1, 0.45 + fl.g * 0.5));
-      stroke({ kind: fl.knife ? 'knife' : 'brush', ctrl: [[fl.x - len / 2, fl.y], [fl.x + len / 2, fl.y + rng.normal() * fl.wd * 0.3]], width: fl.wd, color: c, alpha: 1, thick: 0.45 + 0.7 * Math.min(1, fl.g), wet: 0.05, dry: 0.15, rag: 0.6, taper: [0.15, 0.35], mask: groundMask, maskHard: 0.9, seed: fl.seed });
+      const c = lerpColor(S.color(fl.x, fl.y, 1, cc), base, Math.min(1, 0.6 + fl.g * 0.5));
+      stroke({ kind: fl.knife ? 'knife' : 'brush', ctrl: [[fl.x - len / 2, fl.y], [fl.x + len / 2, fl.y + rng.normal() * fl.wd * 0.3]], width: fl.wd * 0.8, color: c, alpha: 1, thick: 0.4 + 0.6 * Math.min(1, fl.g), wet: 0.05, dry: 0.45, rag: 0.9, breaks: 0.25, taper: [0.15, 0.35], mask: seaMask, maskHard: 0.9, seed: fl.seed });
     }
     stats.glitter = flecks.length;
   }
@@ -267,7 +272,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const pts = trace(S, x, y, { step: Math.max(2, hw * 0.5), maxLen: len, sigma: hw * 0.6, maxDiff: 0.2, minLen: hw, objs: PAVE, curl: 0.1, angleOffset: across ? Math.PI / 2 : 0 });
     const c = jitter(S.color(x, y, hw * 0.6, cc, 'ground'), rng, { value: 0.025, temp: 0.012 });
     const lightness = Math.min(1, lum(c) * 2.5);
-    stroke({ ctrl: pts, width: hw, color: c, alpha: 0.85, thick: 0.03 + 0.07 * lightness, wet: 0.25, dry: 0.45 + 0.2 * (1 - lightness), load: 0.85, pickup: 0.3, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: pts, width: hw, color: c, alpha: 0.85, thick: 0.03 + 0.07 * lightness, wet: 0.25, dry: 0.45 + 0.2 * (1 - lightness), load: 0.85, pickup: 0.3, mask: stoneMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   forCells({ region, spacing: px(3.5), margin: px(40), seed, pass: 11 }, (x, y, rng) => {
     const o = S.obj(x, y);
@@ -278,7 +283,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const err = colorDiff(target, canvasColor(canvas, S.idx(x, y), cr));
     if (err < (STONE.has(o) ? 0.07 : 0.15)) return;
     const pts = trace(S, x, y, { step: Math.max(1.5, hw * 0.5), maxLen: hw * rng.range(2, 4.5), sigma: hw * 0.5, maxDiff: 0.15, minLen: hw * 0.5, objs: STONE.has(o) ? STONE : PAVE, curl: 0.05, angleOffset: rng.chance(0.4) ? Math.PI / 2 : 0 });
-    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.015, temp: 0.01 }), alpha: 0.9, thick: 0.06, wet: 0.15, dry: 0.3, caps: STONE.has(o) ? 'flat' : undefined, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.015, temp: 0.01 }), alpha: 0.9, thick: 0.06, wet: 0.15, dry: 0.3, caps: STONE.has(o) ? 'flat' : undefined, mask: stoneMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Sun-caught edges of the coping stones: small, loaded, decisive.
   forCells({ region, spacing: px(2.5), margin: px(10), seed, pass: 12 }, (x, y, rng) => {
@@ -289,7 +294,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const len = hw * rng.range(3, 7);
     const a = S.angle(x, y);
     const c = shiftL(S.color(x, y, 0.8, cc), 0.05);
-    stroke({ ctrl: [[x - (Math.cos(a) * len) / 2, y - (Math.sin(a) * len) / 2], [x + (Math.cos(a) * len) / 2, y + (Math.sin(a) * len) / 2]], width: hw, color: c, alpha: 1, thick: 0.4, wet: 0.05, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: [[x - (Math.cos(a) * len) / 2, y - (Math.sin(a) * len) / 2], [x + (Math.cos(a) * len) / 2, y + (Math.sin(a) * len) / 2]], width: hw, color: c, alpha: 1, thick: 0.4, wet: 0.05, mask: stoneMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   tick('stones', t0);
   if (stop('stones')) return stats;
@@ -300,11 +305,11 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const i = S.idx(x, y);
     if (ref.spray[i] < 0.45) return;
     // Broken dabs and flicks along the droplets' paths: water, not rays.
-    const hw = px(rng.range(0.6, 2.4)) * (0.6 + 0.6 * ref.spray[i]);
-    const len = hw * rng.range(1.2, ref.spray[i] > 0.8 && rng.chance(0.25) ? 6 : 3);
-    const a = S.angle(x, y) + rng.normal() * 0.35;
+    const hw = px(rng.range(0.6, 2.2)) * (0.6 + 0.6 * ref.spray[i]);
+    const len = hw * rng.range(2, ref.spray[i] > 0.7 && rng.chance(0.3) ? 8 : 5);
+    const a = S.angle(x, y) + rng.normal() * 0.25;
     const c = shiftL(S.color(x, y, hw * 0.5, cc), 0.03);
-    stroke({ ctrl: [[x - Math.cos(a) * len * 0.5, y - Math.sin(a) * len * 0.5], [x + Math.cos(a) * len * 0.5, y + Math.sin(a) * len * 0.5]], width: hw, color: c, alpha: 0.95, thick: 0.3 + 0.5 * ref.spray[i], wet: 0.1, dry: 0.55, load: 0.85, rag: 0.9, taper: [0.2, 0.4], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: [[x - Math.cos(a) * len * 0.5, y - Math.sin(a) * len * 0.5], [x + Math.cos(a) * len * 0.5, y + Math.sin(a) * len * 0.5]], width: hw, color: c, alpha: 0.95, thick: 0.18 + 0.35 * ref.spray[i], wet: 0.1, dry: 0.55, load: 0.85, rag: 1.1, taper: [0.2, 0.45], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   forCells({ region, spacing: px(12), margin: px(60), seed, pass: 14 }, (x, y, rng) => {
     const i = S.idx(x, y);
@@ -329,7 +334,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
     const ay = y - vp[1];
     const al = Math.hypot(ax, ay) || 1;
     const c = jitter(S.color(x, y, hw * 0.5, cc, 'ground'), rng, { value: 0.015, temp: 0.008 });
-    stroke({ ctrl: [[x - (ax / al) * len * 0.3, y - (ay / al) * len * 0.3], [x + (ax / al) * len * 0.7, y + (ay / al) * len * 0.7]], width: hw, color: c, alpha: 0.75, thick: 0.03, wet: 0.3, dry: 0.5, load: 0.8, mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+    stroke({ ctrl: [[x - (ax / al) * len * 0.3, y - (ay / al) * len * 0.3], [x + (ax / al) * len * 0.7, y + (ay / al) * len * 0.7]], width: hw, color: c, alpha: 0.75, thick: 0.03, wet: 0.3, dry: 0.5, load: 0.8, mask: stoneMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
   });
   // Corrections on the ground: put back the joints, the coping edges and the shape of the
   // cast shadow where the broad strokes smeared them. Strokes run along the local edges.
@@ -358,7 +363,7 @@ export function paintAll({ ctx, ref, canvas, painter, region, scene, until = nul
         const hw = hw0 * (0.6 + 0.6 * depthF(by)) * rng.range(0.85, 1.15);
         const target = S.color(bx, by, hw * 0.4, cc, 'ground');
         const pts = trace(S, bx, by, { step: Math.max(1.2, hw * 0.55), maxLen: hw * rng.range(3, 8), sigma: hw * 0.4, maxDiff: 0.1, minLen: hw, objs: GROUND, curl: 0.2, field });
-        stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.01, temp: 0.006 }), alpha: 0.9, thick: 0.05, wet: 0.12, dry: 0.3, rag: 0.35, taper: [0.1, 0.25], mask: groundMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
+        stroke({ ctrl: pts, width: hw, color: jitter(target, rng, { value: 0.01, temp: 0.006 }), alpha: 0.9, thick: 0.05, wet: 0.12, dry: 0.3, rag: 0.35, taper: [0.1, 0.25], mask: stoneMask, maskHard: 0.9, seed: rng.int(0, 1e9) });
       });
     }
   }
