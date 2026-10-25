@@ -120,12 +120,14 @@ made and the reasons for them.
      3. Knife drags and the sun.
      4. Zorn-style sea rows and clustered glitter flecks.
      5. Slabs and stones.
-     6. Edge-following corrections that put back the joints and the shadow.
-     7. Spray.
+     6. Spray.
+     7. The long shadow, then edge-following corrections that put back the slab joints,
+        the coping edges and the shape of the shadow.
      8. The flock: the two nearest birds painted from life, the rest as single strokes with
         burning edges.
      9. The rider and the bicycle, error-driven from coarse to fine, with each brush clipped
-        to its own object.
+        to its own object. Each large tube and tyre first gets one long underpainting
+        stroke.
      10. Rim lights.
      11. Lost edges along the horizon.
 4. **Finish** (`src/paint/finish.js`). The impasto height map is lit by a soft gallery light
@@ -157,7 +159,8 @@ node src/cli.js --width 1200 --until sky --out out/sky                    # stop
 
 Crops are painted at the same scale as the full canvas, so a crop previews the same
 strokes. Every stroke draws its randomness from a stream keyed to an absolute canvas cell.
-The full-resolution PNG (about 30 MB) is not committed; `npm run render` reproduces it.
+The lossless full-resolution PNG (about 11 MB) is not committed; `npm run render` reproduces
+it, along with the JPEG.
 
 ## Layout
 
