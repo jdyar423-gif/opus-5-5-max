@@ -1,0 +1,15 @@
+{
+  "name": "the-last-in-the-line",
+  "version": "1.0.0",
+  "description": "A procedural oil painting: an old flightless brown pelican cycles out along a breakwater at sunset, following his flock home.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "preview": "node src/cli.js --width 1200 --out out/preview",
+    "render": "node src/cli.js --width 4800 --out output/pelican-breakwater --jpeg",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,4 @@
+node_modules/
+out/
+# The full-resolution PNG is reproducible with `npm run render`; only the JPEGs are kept.
+output/*.png
